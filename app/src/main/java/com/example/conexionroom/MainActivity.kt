@@ -1,25 +1,32 @@
 package com.example.conexionroom
 
 import android.os.Bundle
+import android.util.Patterns
+import android.view.View
+import android.content.Intent
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.conexionroom.data.AppDatabase
-import com.example.conexionroom.data.Veterinaria_bd
+import com.example.conexionroom.data.User
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var etNombre: EditText
-    private lateinit var etRaza: EditText
-    private lateinit var etEdad: EditText
+    private lateinit var etLoginEmail: EditText
+    private lateinit var etLoginPassword: EditText
+    private lateinit var etRegisterName: EditText
+    private lateinit var etRegisterEmail: EditText
+    private lateinit var etRegisterPassword: EditText
+    private lateinit var etRegisterConfirmPassword: EditText
 
-    private lateinit var btnRegistrar: Button
-    private lateinit var btnBuscar: Button
-    private lateinit var btnEditar: Button
-    private lateinit var btnEliminar: Button
-
-    private var mascotaActual: Veterinaria_bd? = null
+    private lateinit var btnLogin: Button
+    private lateinit var btnCreateAccount: Button
+    private lateinit var tvShowRegister: TextView
+    private lateinit var tvShowLogin: TextView
+    private lateinit var loginContainer: View
+    private lateinit var registerContainer: View
 
     private lateinit var db: AppDatabase
 
@@ -27,93 +34,122 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // EditTexts
-        etNombre = findViewById(R.id.etNombre)
-        etRaza = findViewById(R.id.etRaza)
-        etEdad = findViewById(R.id.etEdad)
-
-        // Buttons
-        btnRegistrar = findViewById(R.id.btnRegistrar)
-        btnBuscar = findViewById(R.id.btnBuscar)
-        btnEditar = findViewById(R.id.btnEditar)
-        btnEliminar = findViewById(R.id.btnEliminar)
-
         db = AppDatabase.getDatabase(this)
-        btnRegistrar.setOnClickListener {
-            val nombre = etNombre.text.toString().trim()
-            val raza = etRaza.text.toString().trim()
-            val edadText = etEdad.text.toString().trim()
 
-            if (!validarDatos(nombre, raza, edadText)) return@setOnClickListener
+        etLoginEmail = findViewById(R.id.etLoginEmail)
+        etLoginPassword = findViewById(R.id.etLoginPassword)
+        etRegisterName = findViewById(R.id.etRegisterName)
+        etRegisterEmail = findViewById(R.id.etRegisterEmail)
+        etRegisterPassword = findViewById(R.id.etRegisterPassword)
+        etRegisterConfirmPassword = findViewById(R.id.etRegisterConfirmPassword)
 
-            val edad = edadText.toInt()
-            db.mascotaDao().insertarMascota(Veterinaria_bd(nombre = nombre, raza = raza, edad = edad))
-            Toast.makeText(this, "Mascota registrada", Toast.LENGTH_SHORT).show()
-            limpiarCampos()
+        btnLogin = findViewById(R.id.btnLogin)
+        btnCreateAccount = findViewById(R.id.btnCreateAccount)
+        tvShowRegister = findViewById(R.id.tvShowRegister)
+        tvShowLogin = findViewById(R.id.tvShowLogin)
+        loginContainer = findViewById(R.id.loginContainer)
+        registerContainer = findViewById(R.id.registerContainer)
+
+        showLogin()
+
+        btnLogin.setOnClickListener { loginUser() }
+        btnCreateAccount.setOnClickListener { registerUser() }
+        tvShowRegister.setOnClickListener { showRegister() }
+        tvShowLogin.setOnClickListener { showLogin() }
+    }
+
+    private fun registerUser() {
+        val name = etRegisterName.text.toString().trim()
+        val email = etRegisterEmail.text.toString().trim().lowercase()
+        val password = etRegisterPassword.text.toString().trim()
+        val confirmPassword = etRegisterConfirmPassword.text.toString().trim()
+
+        when {
+            name.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() -> {
+                showToast("Completa todos los campos")
+                return
+            }
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                showToast("Ingresa un correo valido")
+                return
+            }
+            password != confirmPassword -> {
+                showToast("Las contrasenas no coinciden")
+                return
+            }
+            db.userDao().getUserByEmail(email) != null -> {
+                showToast("Ese correo ya esta registrado")
+                return
+            }
         }
-        btnBuscar.setOnClickListener {
-            val nombre = etNombre.text.toString().trim()
-            if (nombre.isEmpty()) {
-                Toast.makeText(this, "Escribe un nombre para buscar", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val lista = db.mascotaDao().buscarMascota(nombre)
-            if (lista.isNotEmpty()) {
-                mascotaActual = lista[0]
-                etRaza.setText(mascotaActual!!.raza)
-                etEdad.setText(mascotaActual!!.edad.toString())
-                Toast.makeText(this, "Mascota encontrada", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "No se encontró la mascota", Toast.LENGTH_SHORT).show()
-                limpiarCampos()
-                mascotaActual = null
-            }
-        }
-        btnEditar.setOnClickListener {
-            val mascota = mascotaActual
-            if (mascota == null) {
-                Toast.makeText(this, "Primero busca la mascota", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val nuevoNombre = etNombre.text.toString().trim()
-            val nuevaRaza = etRaza.text.toString().trim()
-            val nuevaEdadText = etEdad.text.toString().trim()
 
-            if (!validarDatos(nuevoNombre, nuevaRaza, nuevaEdadText)) return@setOnClickListener
-
-            val nuevaEdad = nuevaEdadText.toInt()
-            val mascotaEditada = Veterinaria_bd(
-                id = mascota.id,
-                nombre = nuevoNombre,
-                raza = nuevaRaza,
-                edad = nuevaEdad
+        db.userDao().insertUser(
+            User(
+                name = name,
+                email = email,
+                password = password
             )
-            db.mascotaDao().actualizarMascota(mascotaEditada)
-            mascotaActual = mascotaEditada
-            Toast.makeText(this, "Mascota editada", Toast.LENGTH_SHORT).show()
-        }
-        btnEliminar.setOnClickListener {
-            val mascota = mascotaActual
-            if (mascota == null) {
-                Toast.makeText(this, "Primero busca la mascota", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        )
+
+        clearRegisterFields()
+        etLoginEmail.setText(email)
+        showLogin()
+        showToast("Cuenta creada correctamente")
+    }
+
+    private fun loginUser() {
+        val email = etLoginEmail.text.toString().trim().lowercase()
+        val password = etLoginPassword.text.toString().trim()
+
+        when {
+            email.isEmpty() || password.isEmpty() -> {
+                showToast("Completa correo y contrasena")
+                return
             }
-            db.mascotaDao().eliminarMascota(mascota)
-            Toast.makeText(this, "Mascota eliminada", Toast.LENGTH_SHORT).show()
-            limpiarCampos()
-            mascotaActual = null
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                showToast("Ingresa un correo valido")
+                return
+            }
         }
-    }
-    private fun validarDatos(nombre: String, raza: String, edad: String): Boolean {
-        if (nombre.isEmpty() || raza.isEmpty() || edad.isEmpty()) {
-            Toast.makeText(this, "Completa todos los campos", Toast.LENGTH_SHORT).show()
-            return false
+
+        val user = db.userDao().login(email, password)
+        if (user == null) {
+            val existingUser = db.userDao().getUserByEmail(email)
+            if (existingUser == null) {
+                etRegisterEmail.setText(email)
+                showRegister()
+                showToast("No tienes cuenta. Registrate")
+            } else {
+                showToast("Correo o contrasena incorrectos")
+            }
+            return
         }
-        return true
+
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .putExtra(HomeActivity.EXTRA_USER_ID, user.id)
+        )
     }
-    private fun limpiarCampos() {
-        etNombre.text.clear()
-        etRaza.text.clear()
-        etEdad.text.clear()
+
+    private fun showLogin() {
+        loginContainer.visibility = View.VISIBLE
+        registerContainer.visibility = View.GONE
+        etLoginPassword.text.clear()
+    }
+
+    private fun showRegister() {
+        registerContainer.visibility = View.VISIBLE
+        loginContainer.visibility = View.GONE
+    }
+
+    private fun clearRegisterFields() {
+        etRegisterName.text.clear()
+        etRegisterEmail.text.clear()
+        etRegisterPassword.text.clear()
+        etRegisterConfirmPassword.text.clear()
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }

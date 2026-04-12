@@ -5,10 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Veterinaria_bd::class], version = 1)
+@Database(entities = [User::class, Reservation::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun mascotaDao(): A_Data
+    abstract fun userDao(): UserDao
+    abstract fun reservationDao(): ReservationDao
 
     companion object {
         @Volatile
@@ -19,9 +20,10 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "veterinaria_db"
+                    "restaurant_reservations_db"
                 )
                     .allowMainThreadQueries()
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
