@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         db = AppDatabase.getDatabase(this)
+        createDefaultAdminIfNeeded()
 
         etLoginEmail = findViewById(R.id.etLoginEmail)
         etLoginPassword = findViewById(R.id.etLoginPassword)
@@ -56,6 +57,20 @@ class MainActivity : AppCompatActivity() {
         btnCreateAccount.setOnClickListener { registerUser() }
         tvShowRegister.setOnClickListener { showRegister() }
         tvShowLogin.setOnClickListener { showLogin() }
+    }
+
+    private fun createDefaultAdminIfNeeded() {
+        val adminEmail = "admin@admin.com"
+        if (db.userDao().getUserByEmail(adminEmail) == null) {
+            db.userDao().insertUser(
+                User(
+                    name = "Administrador",
+                    email = adminEmail,
+                    password = "admin123",
+                    isAdmin = true
+                )
+            )
+        }
     }
 
     private fun registerUser() {
@@ -87,7 +102,8 @@ class MainActivity : AppCompatActivity() {
             User(
                 name = name,
                 email = email,
-                password = password
+                password = password,
+                isAdmin = email.endsWith("@admin.com")
             )
         )
 
